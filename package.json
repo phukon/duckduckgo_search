@@ -1,0 +1,27 @@
+{
+  "name": "duckduckgo_search",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "clean": "rimraf dist",
+    "prebuild": "pnpm run clean",
+    "build": "tsup",
+    "preversion": "pnpm run build",
+    "postversion": "git push --tags"
+  },
+  "keywords": [],
+  "author": "Riki Phukon",
+  "license": "mit",
+  "description": "",
+  "devDependencies": {
+    "@types/node": "^22.5.1",
+    "rimraf": "^6.0.1",
+    "tsup": "^8.2.4",
+    "typescript": "^5.5.4"
+  }
+}
