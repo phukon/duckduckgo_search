@@ -1,4 +1,4 @@
-import { DDGS } from "../src/duckduckgoSearch";
+import { DDGS } from "../src/index";
 
 async function searchExample() {
   const ddgs = new DDGS();
@@ -8,14 +8,13 @@ async function searchExample() {
       keywords: "typescript programming",
     });
 
-    // Advanced search with options
     const advancedResults = await ddgs.text({
       keywords: "typescript programming",
-      region: "us-en", // Search in US region
-      safesearch: "moderate", // Can be "off", "moderate", or "strict"
-      timelimit: "d", // Past 24 hours (can be "d", "w", "m", or "y")
-      maxResults: 10, // Limit results
-      backend: "html", // Force HTML backend (can be "html", "lite", or "auto")
+      region: "us-en",
+      safesearch: "moderate",
+      timelimit: "d",
+      maxResults: 10,
+      backend: "html",
     });
 
     results.forEach((result, index) => {
@@ -31,5 +30,4 @@ async function searchExample() {
   }
 }
 
-// Run the example
 searchExample();

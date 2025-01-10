@@ -14,7 +14,7 @@ describe('DuckDuckGo Search Integration Tests', () => {
       href: expect.any(String),
       body: expect.any(String)
     })
-  }, { timeout: 10000 }) // 10 second timeout
+  }, { timeout: 10000 })
 
   it('should respect maxResults parameter', async () => {
     const ddgs = new DDGS()

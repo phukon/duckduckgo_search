@@ -1,3 +1,2 @@
-import { lol } from "./duckduckgoSearch";
-
-export { lol };
+import { DDGS } from "./duckduckgoSearch";
+export { DDGS };

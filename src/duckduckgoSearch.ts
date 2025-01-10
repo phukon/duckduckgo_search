@@ -3,17 +3,15 @@ import { _normalize, _normalizeUrl } from "./utils";
 import axios, { AxiosInstance } from "axios";
 import { JSDOM } from "jsdom";
 import { SearchResult, Region, SafeSearch, TimeLimit, Backend } from "./types";
-import { DuckDuckGoSearchException, RatelimitException, TimeoutException } from "./exceptions";
+import { DuckDuckGoSearchError, RatelimitError, TimeoutError } from "./errors";
 import winston from "winston";
 
-// Configure logger
 const logger = winston.createLogger({
   level: "info",
   format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
   transports: [new winston.transports.File({ filename: "error.log", level: "error" }), new winston.transports.File({ filename: "combined.log" })],
 });
 
-// If we're not in production, log to console as well
 if (process.env.NODE_ENV !== "production") {
   logger.add(
     new winston.transports.Console({
@@ -130,30 +128,30 @@ export class DDGS {
     try {
       const response = await this.client.request({
         ...options,
-        params: options.data
-    });
+        params: options.data,
+      });
 
       if (response.status === 200) {
         logger.debug("Request successful", { status: response.status, url: options.url });
         return response.data;
       } else if ([202, 301, 403].includes(response.status)) {
         logger.warn("Ratelimit hit", { status: response.status, url: options.url });
-        throw new RatelimitException(`${response.config.url} ${response.status} Ratelimit`);
+        throw new RatelimitError(`${response.config.url} ${response.status} Ratelimit`);
       }
       logger.error("Unexpected status code", { status: response.status, url: options.url });
-      throw new DuckDuckGoSearchException(`${response.config.url} returned unexpected status ${response.status}`);
+      throw new DuckDuckGoSearchError(`${response.config.url} returned unexpected status ${response.status}`);
     } catch (error: any) {
-      if (error instanceof RatelimitException) {
+      if (error instanceof RatelimitError) {
         throw error;
       }
 
       if (error.message.toLowerCase().includes("timeout")) {
         logger.error("Request timeout", { url: options.url, error: error.message });
-        throw new TimeoutException(`${options.url} request timed out`);
+        throw new TimeoutError(`${options.url} request timed out`);
       }
 
       logger.error("Request failed", { url: options.url, error: error.message });
-      throw new DuckDuckGoSearchException(`${options.url} request failed: ${error.message}`);
+      throw new DuckDuckGoSearchError(`${options.url} request failed: ${error.message}`);
     }
   }
 
@@ -163,7 +161,7 @@ export class DDGS {
 
     if (!keywords) {
       logger.error("No keywords provided");
-      throw new DuckDuckGoSearchException("keywords is mandatory");
+      throw new DuckDuckGoSearchError("keywords is mandatory");
     }
 
     const backends = backend === "auto" ? ["html", "lite"] : [backend];
@@ -189,7 +187,7 @@ export class DDGS {
         if (b === "html") {
           results = await this.textHtml(keywords, region, timelimit, maxResults);
         } else if (b === "lite") {
-          results = await await this.textHtml(keywords, region, timelimit, maxResults); // this.textLite(keywords, region, timelimit, maxResults);
+          results = await this.textHtml(keywords, region, timelimit, maxResults); // this.textLite(keywords, region, timelimit, maxResults);
         }
         logger.info("Search completed successfully", { backend: b, resultCount: results.length });
         return results;
@@ -200,7 +198,7 @@ export class DDGS {
     }
 
     logger.error("All backends failed", { lastError: lastError?.message });
-    throw new DuckDuckGoSearchException(lastError?.message || "Search failed");
+    throw new DuckDuckGoSearchError(lastError?.message || "Search failed");
   }
 
   private async textHtml(keywords: string, region: string = "wt-wt", timelimit: TimeLimit = null, maxResults: number | null = null): Promise<SearchResult[]> {
@@ -245,7 +243,7 @@ export class DDGS {
         }
 
         cache.add(href);
-        // first <a> (anchor) tag that is a child of an <h2> tag. 
+        // first <a> (anchor) tag that is a child of an <h2> tag.
         const title = element.querySelector("h2 a")?.textContent || "";
         const body = Array.from(element.querySelectorAll("a"))
           .map((el) => el.textContent)
