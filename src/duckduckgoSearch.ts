@@ -4,6 +4,23 @@ import axios, { AxiosInstance } from "axios";
 import { JSDOM } from "jsdom";
 import { SearchResult, Region, SafeSearch, TimeLimit, Backend } from "./types";
 import { DuckDuckGoSearchException, RatelimitException, TimeoutException } from "./exceptions";
+import winston from "winston";
+
+// Configure logger
+const logger = winston.createLogger({
+  level: "info",
+  format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
+  transports: [new winston.transports.File({ filename: "error.log", level: "error" }), new winston.transports.File({ filename: "combined.log" })],
+});
+
+// If we're not in production, log to console as well
+if (process.env.NODE_ENV !== "production") {
+  logger.add(
+    new winston.transports.Console({
+      format: winston.format.simple(),
+    })
+  );
+}
 
 export class DDGS {
   private readonly client: AxiosInstance;
@@ -67,6 +84,7 @@ export class DDGS {
     } = {}
   ) {
     const { headers = {}, proxy, timeout = 10000, verify = true } = options;
+    logger.info("Initializing DDGS with options", { proxy, timeout, verify });
 
     this.client = axios.create({
       timeout,
@@ -92,57 +110,59 @@ export class DDGS {
   }
 
   private getRandomUserAgent(): string {
-    return DDGS.IMPERSONATES[Math.floor(Math.random() * DDGS.IMPERSONATES.length)];
+    const userAgent = DDGS.IMPERSONATES[Math.floor(Math.random() * DDGS.IMPERSONATES.length)];
+    logger.debug("Selected random user agent", { userAgent });
+    return userAgent;
   }
 
   private async sleep(sleepTime: number = 0.75): Promise<void> {
     const now = Date.now() / 1000;
     const delay = !this.sleepTimestamp ? 0 : now - this.sleepTimestamp >= 20 ? 0 : sleepTime * 1000;
     this.sleepTimestamp = now;
+    logger.debug("Sleeping", { delay });
     await new Promise((resolve) => setTimeout(resolve, delay));
   }
 
   // TODO: content, data, cookies
   private async getUrl(options: { method: string; url: string; params?: Record<string, string>; data?: any }): Promise<any> {
+    logger.info("Making request", { method: options.method, url: options.url });
     await this.sleep();
     try {
-      const response = await this.client.request(options);
+      const response = await this.client.request({
+        ...options,
+        params: options.data
+    });
 
       if (response.status === 200) {
+        logger.debug("Request successful", { status: response.status, url: options.url });
         return response.data;
       } else if ([202, 301, 403].includes(response.status)) {
+        logger.warn("Ratelimit hit", { status: response.status, url: options.url });
         throw new RatelimitException(`${response.config.url} ${response.status} Ratelimit`);
       }
+      logger.error("Unexpected status code", { status: response.status, url: options.url });
       throw new DuckDuckGoSearchException(`${response.config.url} returned unexpected status ${response.status}`);
     } catch (error: any) {
       if (error instanceof RatelimitException) {
         throw error;
       }
-      
+
       if (error.message.toLowerCase().includes("timeout")) {
+        logger.error("Request timeout", { url: options.url, error: error.message });
         throw new TimeoutException(`${options.url} request timed out`);
       }
 
+      logger.error("Request failed", { url: options.url, error: error.message });
       throw new DuckDuckGoSearchException(`${options.url} request failed: ${error.message}`);
     }
   }
 
-  // private normalizeUrl(url: string): string {
-  //   try {
-  //     return new URL(url).toString();
-  //   } catch {
-  //     return url;
-  //   }
-  // }
-
-  // private normalize(text: string): string {
-  //   return text.replace(/\s+/g, " ").trim();
-  // }
-
   async text(options: { keywords: string; region?: Region; safesearch?: SafeSearch; timelimit?: TimeLimit; backend?: Backend; maxResults?: number }): Promise<SearchResult[]> {
     const { keywords, region = "wt-wt", safesearch = "moderate", timelimit = null, backend = "auto", maxResults = null } = options;
+    logger.info("Starting text search", { keywords, region, safesearch, timelimit, backend, maxResults });
 
     if (!keywords) {
+      logger.error("No keywords provided");
       throw new DuckDuckGoSearchException("keywords is mandatory");
     }
 
@@ -159,6 +179,7 @@ export class DDGS {
      * - This is a simple way to shuffle the array, though not the most efficient or uniform.
      */
     backends.sort(() => Math.random() - 0.5);
+    logger.debug("Selected backends", { backends });
 
     let results: SearchResult[] = [];
     let lastError: Error | null = null;
@@ -167,20 +188,24 @@ export class DDGS {
       try {
         if (b === "html") {
           results = await this.textHtml(keywords, region, timelimit, maxResults);
-        } //else if (b === "lite") {
-        //   results = await this.textLite(keywords, region, timelimit, maxResults);
-        // }
+        } else if (b === "lite") {
+          results = await await this.textHtml(keywords, region, timelimit, maxResults); // this.textLite(keywords, region, timelimit, maxResults);
+        }
+        logger.info("Search completed successfully", { backend: b, resultCount: results.length });
         return results;
       } catch (error: any) {
-        console.info(`Error searching using ${b} backend:`, error);
+        logger.error(`Error searching using ${b} backend`, { error: error.message });
         lastError = error;
       }
     }
 
+    logger.error("All backends failed", { lastError: lastError?.message });
     throw new DuckDuckGoSearchException(lastError?.message || "Search failed");
   }
 
   private async textHtml(keywords: string, region: string = "wt-wt", timelimit: TimeLimit = null, maxResults: number | null = null): Promise<SearchResult[]> {
+    logger.info("Starting HTML search", { keywords, region, timelimit, maxResults });
+
     const payload = {
       q: keywords,
       s: "0",
@@ -196,6 +221,7 @@ export class DDGS {
     const results: SearchResult[] = [];
 
     for (let i = 0; i < 5; i++) {
+      logger.debug("Fetching page", { pageNumber: i + 1 });
       const response = await this.getUrl({
         method: "POST",
         url: "https://html.duckduckgo.com/html",
@@ -207,6 +233,7 @@ export class DDGS {
       const elements = dom.window.document.querySelectorAll("div:has(h2)");
 
       if (response.includes("No results.")) {
+        logger.info("No results found");
         return results;
       }
 
@@ -231,25 +258,30 @@ export class DDGS {
         });
 
         if (maxResults && results.length >= maxResults) {
+          logger.info("Reached maximum results limit", { resultCount: results.length });
           return results;
         }
       }
 
       const nextPage = dom.window.document.querySelector(".nav-link:last-child");
       if (!nextPage || !maxResults) {
+        logger.info("No more pages to fetch", { resultCount: results.length });
         return results;
       }
 
       const inputs = nextPage.querySelectorAll('input[type="hidden"]');
-      payload.s = Array.from(inputs).find((input) => input.getAttribute('name') === "s")?.getAttribute('value') || "0";
+      payload.s =
+        Array.from(inputs)
+          .find((input) => input.getAttribute("name") === "s")
+          ?.getAttribute("value") || "0";
     }
 
+    logger.info("Search completed", { resultCount: results.length });
     return results;
   }
-
-  // private async textLite(keywords: string, region: string = "wt-wt", timelimit: TimeLimit = null, maxResults: number | null = null): Promise<SearchResult[]> {
-  //   // Implementation similar to textHtml but for lite version
-  //   // JSDOM for HTML parsing
-  //   return [];
-  // }
 }
+// private async textLite(keywords: string, region: string = "wt-wt", timelimit: TimeLimit = null, maxResults: number | null = null): Promise<SearchResult[]> {
+//   // Implementation similar to textHtml but for lite version
+//   // JSDOM for HTML parsing
+//   return [];
+// }
