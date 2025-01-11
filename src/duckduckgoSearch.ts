@@ -128,7 +128,7 @@ export class DDGS {
     try {
       const response = await this.client.request({
         ...options,
-        params: options.data,
+        data: options.data,
       });
 
       if (response.status === 200) {
