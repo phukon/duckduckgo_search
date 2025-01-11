@@ -1,3 +1,15 @@
+export interface Payload {
+  q: string;
+  s: string;
+  o: string;
+  api: string;
+  vqd: string;
+  kl: string;
+  bing_market: string;
+  df?: "d" | "w" | "m" | "y";
+  [key: string]: string | undefined; // for allowing additional properties
+}
+
 export interface SearchResult {
   title: string;
   href: string;
@@ -29,12 +41,12 @@ export interface NewsResult {
 }
 
 export interface ChatMessage {
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
 }
 
-export type Region = 'wt-wt' | 'us-en' | 'uk-en' | 'ru-ru' | string;
-export type SafeSearch = 'on' | 'moderate' | 'off';
-export type TimeLimit = 'd' | 'w' | 'm' | 'y' | null;
-export type Backend = 'auto' | 'html' | 'lite';
-export type ImageSize = 'Small' | 'Medium' | 'Large' | 'Wallpaper' | null;
+export type Region = "wt-wt" | "us-en" | "uk-en" | "ru-ru" | string;
+export type SafeSearch = "on" | "moderate" | "off";
+export type TimeLimit = "d" | "w" | "m" | "y" | null;
+export type Backend = "auto" | "html" | "lite";
+export type ImageSize = "Small" | "Medium" | "Large" | "Wallpaper" | null;

@@ -2,7 +2,7 @@ import https from "node:https";
 import { _normalize, _normalizeUrl } from "./utils";
 import axios, { AxiosInstance } from "axios";
 import { JSDOM } from "jsdom";
-import { SearchResult, Region, SafeSearch, TimeLimit, Backend } from "./types";
+import { Payload, SearchResult, Region, SafeSearch, TimeLimit, Backend } from "./types";
 import { DuckDuckGoSearchError, RatelimitError, TimeoutError } from "./errors";
 import winston from "winston";
 
@@ -204,7 +204,7 @@ export class DDGS {
   private async textHtml(keywords: string, region: string = "wt-wt", timelimit: TimeLimit = null, maxResults: number | null = null): Promise<SearchResult[]> {
     logger.info("Starting HTML search", { keywords, region, timelimit, maxResults });
 
-    const payload = {
+    let payload: Partial<Payload> = {
       q: keywords,
       s: "0",
       o: "json",
