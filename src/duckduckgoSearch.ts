@@ -261,25 +261,67 @@ export class DDGS {
         }
       }
 
-      const nextPage = dom.window.document.querySelector(".nav-link:last-child");
+      /*
+       * DuckDuckGo's search results pagination is implemented through a form-based navigation system.
+       * Each page contains hidden form fields that maintain the search state. A typical HTML structure might look like:
+       *
+       * <form action="/html/" method="post">
+          <input type="submit" class="btn btn--alt" value="Next">
+          <input type="hidden" name="q" value="warhammer 40k">
+          <input type="hidden" name="s" value="25">
+          <input type="hidden" name="nextParams" value="">
+          <input type="hidden" name="v" value="l">
+          <input type="hidden" name="o" value="json">
+          <input type="hidden" name="dc" value="26">
+          <input type="hidden" name="api" value="d.js">
+          <input type="hidden" name="vqd" value="4-211359754659760865915995650825483102995"> 
+          <input name="kl" value="wt-wt" type="hidden">
+        </form>
+       */
+      const nodeList = dom.window.document.querySelectorAll(".nav-link");
+      const nextPage = nodeList[nodeList.length - 1];
       if (!nextPage || !maxResults) {
         logger.info("No more pages to fetch", { resultCount: results.length });
         return results;
       }
 
+      const newPayload: Partial<Payload> = {};
       const inputs = nextPage.querySelectorAll('input[type="hidden"]');
-      payload.s =
-        Array.from(inputs)
-          .find((input) => input.getAttribute("name") === "s")
-          ?.getAttribute("value") || "0";
+      inputs.forEach((input) => {
+        const name = input.getAttribute("name");
+        const value = input.getAttribute("value");
+
+        if (name && value !== null) {
+          newPayload[name] = value;
+        }
+      });
+      payload = newPayload;
     }
 
     logger.info("Search completed", { resultCount: results.length });
     return results;
   }
+
+  // private async textLite(keywords: string, region: string = "wt-wt", timelimit: TimeLimit = null, maxResults: number | null = null): Promise<SearchResult[]> {
+  //   logger.info("Starting HTML lite search", { keywords, region, timelimit, maxResults });
+  //
+  //   const payload = {
+  //     q: keywords,
+  //     s: "0",
+  //     o: "json",
+  //     api: "d.js",
+  //     vqd: "",
+  //     kl: region,
+  //     bing_market: region,
+  //     ...(timelimit && { df: timelimit }),
+  //   };
+  //
+  //   const cache = new Set<string>();
+  //   const results: SearchResult[] = [];
+  //
+  //   for (let i = 0; i < 5; i++) {
+  //     logger.debug("Fetching page", { pageNumber: i + 1 });
+  //     const response = 1;
+  //   }
+  // }
 }
-// private async textLite(keywords: string, region: string = "wt-wt", timelimit: TimeLimit = null, maxResults: number | null = null): Promise<SearchResult[]> {
-//   // Implementation similar to textHtml but for lite version
-//   // JSDOM for HTML parsing
-//   return [];
-// }
