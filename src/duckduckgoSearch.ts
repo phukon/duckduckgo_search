@@ -12,7 +12,7 @@ const logger = winston.createLogger({
   transports: [new winston.transports.File({ filename: "error.log", level: "error" }), new winston.transports.File({ filename: "combined.log" })],
 });
 
-if (process.env.NODE_ENV !== "production") {
+if (process.env.NODE_ENV !== "production" && process.env.duckduckgo_search_log?.trim() === "enable") {
   logger.add(
     new winston.transports.Console({
       format: winston.format.simple(),
