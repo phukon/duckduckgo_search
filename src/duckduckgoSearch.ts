@@ -86,8 +86,20 @@ export class DDGS {
 
     this.client = axios.create({
       timeout,
+      // some dummy headers to get around the CAPTCHA gates
       headers: {
         ...headers,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8",
+        "Cache-Control": "max-age=0",
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Sec-Ch-Ua": "\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\"",
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Sec-Ch-Ua-Platform": "\"Linux\"",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "same-origin",
+        "Sec-Fetch-User": "?1",
         Referer: "https://duckduckgo.com/",
         "User-Agent": this.getRandomUserAgent(),
       },
@@ -227,9 +239,9 @@ export class DDGS {
       });
 
       const dom = new JSDOM(response);
+      const jsdomDocument = dom.window.document
       // all <div> elements that contain at least one <h2> element as a descendant
-      const elements = dom.window.document.querySelectorAll("div:has(h2)");
-
+      const elements = jsdomDocument.querySelectorAll("div:has(h2)");
       if (response.includes("No results.")) {
         logger.info("No results found");
         return results;
@@ -250,9 +262,9 @@ export class DDGS {
           .join("");
 
         results.push({
-          title: _normalize(title),
+          title: _normalize(jsdomDocument, title),
           href: _normalizeUrl(href),
-          body: _normalize(body),
+          body: _normalize(jsdomDocument, body),
         });
 
         if (maxResults && results.length >= maxResults) {
@@ -304,8 +316,8 @@ export class DDGS {
 
   // private async textLite(keywords: string, region: string = "wt-wt", timelimit: TimeLimit = null, maxResults: number | null = null): Promise<SearchResult[]> {
   //   logger.info("Starting HTML lite search", { keywords, region, timelimit, maxResults });
-  //
-  //   const payload = {
+
+  //   let payload: Partial<Payload> = {
   //     q: keywords,
   //     s: "0",
   //     o: "json",
@@ -315,10 +327,10 @@ export class DDGS {
   //     bing_market: region,
   //     ...(timelimit && { df: timelimit }),
   //   };
-  //
+
   //   const cache = new Set<string>();
   //   const results: SearchResult[] = [];
-  //
+
   //   for (let i = 0; i < 5; i++) {
   //     logger.debug("Fetching page", { pageNumber: i + 1 });
   //     const response = 1;
