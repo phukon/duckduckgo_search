@@ -16,9 +16,10 @@ export function _normalizeUrl(url: string): string {
 }
 
 
-export function _normalize(rawHtml: string): string {
+export function _normalize(jsdomDocument: Document, rawHtml: string): string {
     /**
      * Strip HTML tags from the rawHtml string and decode HTML entities
+     * @param jsdomDocument - The JSDOM Document object used for HTML entity decoding
      * @param rawHtml - The HTML string to be normalized
      * @returns The cleaned and decoded string
      */
@@ -28,7 +29,7 @@ export function _normalize(rawHtml: string): string {
     const strippedHtml = rawHtml.replace(REGEX_STRIP_TAGS, '');
     
     // Then decode HTML entities using the browser's built-in decoder
-    const textarea = document.createElement('textarea');
+    const textarea = jsdomDocument.createElement('textarea');
     textarea.innerHTML = strippedHtml;
     return textarea.value;
 }
