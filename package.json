@@ -22,7 +22,11 @@
     "type": "git",
     "url": "https://github.com/phukon/duckduckgo_search.git"
   },
-  "keywords": [],
+  "keywords": [
+    "duckduckgo",
+    "search",
+    "browser"
+  ],
   "author": "Riki Phukon",
   "license": "mit",
   "description": "",

@@ -89,13 +89,13 @@ export class DDGS {
       // some dummy headers to get around the CAPTCHA gates
       headers: {
         ...headers,
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
         "Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8",
         "Cache-Control": "max-age=0",
         "Content-Type": "application/x-www-form-urlencoded",
-        "Sec-Ch-Ua": "\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\"",
+        "Sec-Ch-Ua": '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
         "Sec-Ch-Ua-Mobile": "?0",
-        "Sec-Ch-Ua-Platform": "\"Linux\"",
+        "Sec-Ch-Ua-Platform": '"Linux"',
         "Sec-Fetch-Dest": "document",
         "Sec-Fetch-Mode": "navigate",
         "Sec-Fetch-Site": "same-origin",
@@ -199,7 +199,7 @@ export class DDGS {
         if (b === "html") {
           results = await this.textHtml(keywords, region, timelimit, maxResults);
         } else if (b === "lite") {
-          results = await this.textHtml(keywords, region, timelimit, maxResults); // this.textLite(keywords, region, timelimit, maxResults);
+          results = await this.textLite(keywords, region, timelimit, maxResults);
         }
         logger.info("Search completed successfully", { backend: b, resultCount: results.length });
         return results;
@@ -239,7 +239,7 @@ export class DDGS {
       });
 
       const dom = new JSDOM(response);
-      const jsdomDocument = dom.window.document
+      const jsdomDocument = dom.window.document;
       // all <div> elements that contain at least one <h2> element as a descendant
       const elements = jsdomDocument.querySelectorAll("div:has(h2)");
       if (response.includes("No results.")) {
@@ -314,26 +314,84 @@ export class DDGS {
     return results;
   }
 
-  // private async textLite(keywords: string, region: string = "wt-wt", timelimit: TimeLimit = null, maxResults: number | null = null): Promise<SearchResult[]> {
-  //   logger.info("Starting HTML lite search", { keywords, region, timelimit, maxResults });
+  private async textLite(keywords: string, region: string = "wt-wt", timelimit: TimeLimit = null, maxResults: number | null = null): Promise<SearchResult[]> {
+    logger.info("Starting HTML lite search", { keywords, region, timelimit, maxResults });
 
-  //   let payload: Partial<Payload> = {
-  //     q: keywords,
-  //     s: "0",
-  //     o: "json",
-  //     api: "d.js",
-  //     vqd: "",
-  //     kl: region,
-  //     bing_market: region,
-  //     ...(timelimit && { df: timelimit }),
-  //   };
+    let payload: Partial<Payload> = {
+      q: keywords,
+      s: "0",
+      o: "json",
+      api: "d.js",
+      vqd: "",
+      kl: region,
+      bing_market: region,
+      ...(timelimit && { df: timelimit }),
+    };
 
-  //   const cache = new Set<string>();
-  //   const results: SearchResult[] = [];
+    const cache = new Set<string>();
+    const results: SearchResult[] = [];
 
-  //   for (let i = 0; i < 5; i++) {
-  //     logger.debug("Fetching page", { pageNumber: i + 1 });
-  //     const response = 1;
-  //   }
-  // }
+    for (let i = 0; i < 5; i++) {
+      const response = await this.getUrl({
+        method: "POST",
+        url: "https://lite.duckduckgo.com/lite",
+        data: payload,
+      });
+
+      if (response.includes("No more results.")) {
+        logger.info("No more results found");
+        return results;
+      }
+
+      const dom = new JSDOM(response);
+      const document = dom.window.document;
+
+      const tableElements = document.querySelectorAll("table")
+      const elements = tableElements[tableElements.length - 1].querySelectorAll("tr")
+      if (!elements.length) {
+        return results;
+      }
+
+      //  processing the results in groups of 4 rows cuz each result comprises of the title, the body, the url preview and a separator
+      for (let j = 0; j < elements.length; j += 4) {
+        const titleRow = elements[j];
+        const snippetRow = elements[j + 1];
+
+        if (!titleRow || !snippetRow) continue;
+
+        const anchor = titleRow.querySelector("a");
+        const href = anchor?.href;
+
+        if (!href || cache.has(href) || href.startsWith("http://www.google.com/search?q=") || href.startsWith("https://duckduckgo.com/y.js?ad_domain")) {
+          continue;
+        }
+
+        cache.add(href);
+        const title = anchor?.textContent || "";
+        const body = snippetRow.querySelector(".result-snippet")?.textContent?.trim() || "";
+
+        results.push({
+          title: _normalize(document, title),
+          href: _normalizeUrl(href),
+          body: _normalize(document, body),
+        });
+
+        if (maxResults && results.length >= maxResults) {
+          logger.info("Reached maximum results limit", { resultCount: results.length });
+          return results;
+        }
+      }
+
+      const nextPageInput = document.querySelector("form input[name='s'][value]") as HTMLInputElement;
+      if (!nextPageInput?.value || !maxResults) {
+        logger.info("No more pages to fetch", { resultCount: results.length });
+        return results;
+      }
+
+      payload.s = nextPageInput.value;
+    }
+
+    logger.info("Search completed", { resultCount: results.length });
+    return results;
+  }
 }

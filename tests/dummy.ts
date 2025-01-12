@@ -5,7 +5,8 @@ async function searchExample() {
 
   try {
     const results = await ddgs.text({
-      keywords: "warhammer 40k",
+      keywords: "gumloop",
+      backend: "lite"
     });
 
     // const advancedResults = await ddgs.text({
