@@ -90,7 +90,7 @@ const results = await ddgs.text({
 - [x] Error handling with custom errors
 - [x] SSL verification toggle
 - [ ] HTTP client that can impersonate web browsers
-- [ ] Lite backend implementation
+- [x] Lite backend implementation
 - [ ] News search functionality
 - [ ] Image search functionality
 - [ ] Video search functionality

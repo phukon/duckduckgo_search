@@ -5,7 +5,7 @@ async function searchExample() {
 
   try {
     const results = await ddgs.text({
-      keywords: "warhammer 40k",
+      keywords: "fast fourier transform",
     });
 
     // const advancedResults = await ddgs.text({

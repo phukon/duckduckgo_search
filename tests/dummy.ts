@@ -5,7 +5,7 @@ async function searchExample() {
 
   try {
     const results = await ddgs.text({
-      keywords: "gumloop",
+      keywords: "fast fourier transform",
       backend: "lite"
     });
 
