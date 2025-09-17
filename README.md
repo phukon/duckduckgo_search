@@ -41,7 +41,7 @@ Search for text, news, images and videos using DuckDuckGo's search engine.
 ### Basic Search
 
 ```typescript
-import { DDGS } from "duckduckgo-search-api";
+import { DDGS } from "@phukon/duckduckgo-search";
 const ddgs = new DDGS();
 async function search() {
   const results = await ddgs.text({
